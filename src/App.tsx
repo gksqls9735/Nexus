@@ -8,10 +8,12 @@ import { ChangedFiles } from './components/ChangedFiles'
 import { CommitDetails } from './components/CommitDetails'
 import { ContextMenu } from './components/ContextMenu'
 import { GitHistory } from './components/GitHistory'
+import { RemoteConnectModal } from './components/RemoteConnectModal'
 import { RepositorySidebar } from './components/RepositorySidebar'
 import {
   checkout,
   cherryPick,
+  connectRemote,
   createAndCheckoutBranch,
   createBranch,
   deleteLocalBranch,
@@ -24,7 +26,7 @@ import {
 } from './services/gitElectronService'
 import type { ContextMenuItem, ContextMenuState } from './types/contextMenu'
 import type { GitAction, GitHistoryItem, RepoSnapshot } from './types/git'
-import type { BranchCreateModalState, BranchDeleteModalState } from './types/modal'
+import type { BranchCreateModalState, BranchDeleteModalState, RemoteConnectModalState } from './types/modal'
 
 function App() {
   const [snapshot, setSnapshot] = useState<RepoSnapshot>(emptySnapshot)
@@ -35,6 +37,7 @@ function App() {
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null)
   const [branchCreateModal, setBranchCreateModal] = useState<BranchCreateModalState>(null)
   const [branchDeleteModal, setBranchDeleteModal] = useState<BranchDeleteModalState>(null)
+  const [remoteConnectModal, setRemoteConnectModal] = useState<RemoteConnectModalState>(null)
   const selectedCommitDetail = snapshot.history.find((commit) => commit.hash === selectedCommit)
 
   const closeContextMenu = useCallback(() => setContextMenu(null), [])
@@ -181,6 +184,11 @@ function App() {
     void runAction('deleteBranch', () => deleteLocalBranch(branch, force))
   }
 
+  function submitRemoteConnect(remoteUrl: string) {
+    setRemoteConnectModal(null)
+    void runAction('connectRemote', () => connectRemote(remoteUrl))
+  }
+
   function openContextMenu(event: MouseEvent, items: ContextMenuItem[]) {
     setContextMenu({
       x: Math.min(event.clientX, window.innerWidth - 240),
@@ -196,6 +204,7 @@ function App() {
         busyAction={busyAction}
         onSelectRepository={handleSelectRepository}
         onRefresh={() => void refresh()}
+        onConnectRemote={() => setRemoteConnectModal({ remoteUrl: snapshot.remoteUrl })}
         onPull={() => void runAction('pull', pull)}
         onPush={() => void runAction('push', push)}
       />
@@ -232,6 +241,11 @@ function App() {
         modal={branchDeleteModal}
         onClose={() => setBranchDeleteModal(null)}
         onConfirm={confirmDeleteBranch}
+      />
+      <RemoteConnectModal
+        modal={remoteConnectModal}
+        onClose={() => setRemoteConnectModal(null)}
+        onSubmit={submitRemoteConnect}
       />
     </main>
   )

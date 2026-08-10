@@ -5,6 +5,7 @@ export type GitDeskApi = {
   getSnapshot: (repoPath: string) => Promise<RepoSnapshot>
   pull: (repoPath: string) => Promise<void>
   push: (repoPath: string) => Promise<void>
+  connectRemote: (repoPath: string, remoteUrl: string) => Promise<void>
   checkout: (repoPath: string, branch: string) => Promise<void>
   createBranch: (repoPath: string, branch: string) => Promise<void>
   createAndCheckoutBranch: (repoPath: string, branch: string) => Promise<void>
@@ -44,6 +45,10 @@ export async function pull() {
 
 export async function push() {
   await getApi().push(activeRepoPath)
+}
+
+export async function connectRemote(remoteUrl: string) {
+  await getApi().connectRemote(activeRepoPath, remoteUrl)
 }
 
 export async function checkout(branch: string) {

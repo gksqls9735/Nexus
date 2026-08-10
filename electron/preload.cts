@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('gitDesk', {
   getSnapshot: (repoPath: string) => ipcRenderer.invoke('repo:snapshot', repoPath),
   pull: (repoPath: string) => ipcRenderer.invoke('repo:pull', repoPath),
   push: (repoPath: string) => ipcRenderer.invoke('repo:push', repoPath),
+  connectRemote: (repoPath: string, remoteUrl: string) => ipcRenderer.invoke('repo:connectRemote', repoPath, remoteUrl),
   checkout: (repoPath: string, branch: string) => ipcRenderer.invoke('repo:checkout', repoPath, branch),
   createBranch: (repoPath: string, branch: string) => ipcRenderer.invoke('repo:createBranch', repoPath, branch),
   createAndCheckoutBranch: (repoPath: string, branch: string) =>

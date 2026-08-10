@@ -1,4 +1,4 @@
-import { FolderOpen, GitBranch, RefreshCw, RotateCw, Send } from 'lucide-react'
+import { FolderOpen, GitBranch, Link, RefreshCw, RotateCw, Send } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { GitAction, RepoSnapshot } from '../types/git'
 
@@ -7,11 +7,20 @@ type AppToolbarProps = {
   busyAction: GitAction | 'select' | 'refresh' | ''
   onSelectRepository: () => void
   onRefresh: () => void
+  onConnectRemote: () => void
   onPull: () => void
   onPush: () => void
 }
 
-export function AppToolbar({ snapshot, busyAction, onSelectRepository, onRefresh, onPull, onPush }: AppToolbarProps) {
+export function AppToolbar({
+  snapshot,
+  busyAction,
+  onSelectRepository,
+  onRefresh,
+  onConnectRemote,
+  onPull,
+  onPush,
+}: AppToolbarProps) {
   const hasRepo = Boolean(snapshot.repoPath)
   const busy = Boolean(busyAction)
 
@@ -20,6 +29,7 @@ export function AppToolbar({ snapshot, busyAction, onSelectRepository, onRefresh
       <div className="flex min-w-0 items-center gap-2">
         <ToolbarButton label="Open" icon={<FolderOpen size={16} />} disabled={busy} onClick={onSelectRepository} />
         <ToolbarButton label="Refresh" icon={<RefreshCw size={16} className={busyAction === 'refresh' ? 'animate-spin' : ''} />} disabled={!hasRepo || busy} onClick={onRefresh} />
+        <ToolbarButton label="Remote" icon={<Link size={16} />} disabled={!hasRepo || busy} onClick={onConnectRemote} />
         <div className="mx-1 h-6 w-px bg-slate-200" />
         <ToolbarButton label="Pull" icon={<RotateCw size={16} />} disabled={!hasRepo || busy} onClick={onPull} />
         <ToolbarButton label="Push" icon={<Send size={16} />} disabled={!hasRepo || busy} onClick={onPush} />

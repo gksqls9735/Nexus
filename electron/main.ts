@@ -77,6 +77,18 @@ function registerGitHandlers() {
   ipcMain.handle('repo:push', async (_event, repoPath: string) => {
     await getGit(repoPath).push()
   })
+  ipcMain.handle('repo:connectRemote', async (_event, repoPath: string, remoteUrl: string) => {
+    const git = getGit(repoPath)
+    const remotes = await git.getRemotes(true)
+    const hasOrigin = remotes.some((remote) => remote.name === 'origin')
+
+    if (hasOrigin) {
+      await git.raw(['remote', 'set-url', 'origin', remoteUrl])
+      return
+    }
+
+    await git.addRemote('origin', remoteUrl)
+  })
   ipcMain.handle('repo:checkout', async (_event, repoPath: string, branch: string) => {
     await getGit(repoPath).checkout(branch)
   })

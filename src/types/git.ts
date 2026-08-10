@@ -33,3 +33,4 @@ export type GitAction =
   | 'deleteBranch'
   | 'createBranch'
   | 'createAndCheckoutBranch'
+  | 'connectRemote'
