@@ -80,6 +80,12 @@ function registerGitHandlers() {
   ipcMain.handle('repo:checkout', async (_event, repoPath: string, branch: string) => {
     await getGit(repoPath).checkout(branch)
   })
+  ipcMain.handle('repo:createBranch', async (_event, repoPath: string, branch: string) => {
+    await getGit(repoPath).branch([branch])
+  })
+  ipcMain.handle('repo:createAndCheckoutBranch', async (_event, repoPath: string, branch: string) => {
+    await getGit(repoPath).checkoutLocalBranch(branch)
+  })
   ipcMain.handle('repo:merge', async (_event, repoPath: string, branch: string) => {
     await getGit(repoPath).merge([branch])
   })

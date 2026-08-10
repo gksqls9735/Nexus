@@ -24,4 +24,12 @@ export type RepoSnapshot = {
   changedFiles: ChangedFile[]
 }
 
-export type GitAction = 'pull' | 'push' | 'checkout' | 'merge' | 'cherryPick' | 'deleteBranch'
+export type GitAction =
+  | 'pull'
+  | 'push'
+  | 'checkout'
+  | 'merge'
+  | 'cherryPick'
+  | 'deleteBranch'
+  | 'createBranch'
+  | 'createAndCheckoutBranch'

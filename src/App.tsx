@@ -2,6 +2,8 @@ import { GitBranch, GitMerge, Pickaxe, Trash2 } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { AppToolbar } from './components/AppToolbar'
+import { BranchCreateModal } from './components/BranchCreateModal'
+import { BranchDeleteModal } from './components/BranchDeleteModal'
 import { ChangedFiles } from './components/ChangedFiles'
 import { CommitDetails } from './components/CommitDetails'
 import { ContextMenu } from './components/ContextMenu'
@@ -10,6 +12,8 @@ import { RepositorySidebar } from './components/RepositorySidebar'
 import {
   checkout,
   cherryPick,
+  createAndCheckoutBranch,
+  createBranch,
   deleteLocalBranch,
   emptySnapshot,
   getSnapshot,
@@ -20,6 +24,7 @@ import {
 } from './services/gitElectronService'
 import type { ContextMenuItem, ContextMenuState } from './types/contextMenu'
 import type { GitAction, GitHistoryItem, RepoSnapshot } from './types/git'
+import type { BranchCreateModalState, BranchDeleteModalState } from './types/modal'
 
 function App() {
   const [snapshot, setSnapshot] = useState<RepoSnapshot>(emptySnapshot)
@@ -28,6 +33,8 @@ function App() {
   const [error, setError] = useState('')
   const [busyAction, setBusyAction] = useState<GitAction | 'select' | 'refresh' | ''>('')
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null)
+  const [branchCreateModal, setBranchCreateModal] = useState<BranchCreateModalState>(null)
+  const [branchDeleteModal, setBranchDeleteModal] = useState<BranchDeleteModalState>(null)
   const selectedCommitDetail = snapshot.history.find((commit) => commit.hash === selectedCommit)
 
   const closeContextMenu = useCallback(() => setContextMenu(null), [])
@@ -80,6 +87,7 @@ function App() {
 
   function openCommitMenu(event: MouseEvent, commit: GitHistoryItem) {
     event.preventDefault()
+    event.stopPropagation()
     handleSelectCommit(commit.hash)
     openContextMenu(event, [
       {
@@ -93,6 +101,7 @@ function App() {
 
   function openBranchMenu(event: MouseEvent, branch: string) {
     event.preventDefault()
+    event.stopPropagation()
     const isCurrent = branch === snapshot.currentBranch
     const isRemote = branch.includes('/')
     const items: ContextMenuItem[] = [
@@ -116,7 +125,7 @@ function App() {
         icon: <Trash2 size={15} />,
         danger: true,
         disabled: isCurrent || isRemote,
-        onSelect: () => confirmDeleteBranch(branch, false),
+        onSelect: () => setBranchDeleteModal({ branch, force: false }),
       },
       {
         id: 'force-delete',
@@ -124,17 +133,52 @@ function App() {
         icon: <Trash2 size={15} />,
         danger: true,
         disabled: isCurrent || isRemote,
-        onSelect: () => confirmDeleteBranch(branch, true),
+        onSelect: () => setBranchDeleteModal({ branch, force: true }),
       },
     ]
     openContextMenu(event, items)
   }
 
-  function confirmDeleteBranch(branch: string, force: boolean) {
-    const mode = force ? '강제 삭제' : '삭제'
-    if (window.confirm(`${branch} 브랜치를 ${mode}할까요?`)) {
-      void runAction('deleteBranch', () => deleteLocalBranch(branch, force))
+  function openLocalBranchHeaderMenu(event: MouseEvent) {
+    event.preventDefault()
+    event.stopPropagation()
+    openContextMenu(event, [
+      {
+        id: 'create-branch',
+        label: 'Create branch',
+        icon: <GitBranch size={15} />,
+        onSelect: () => setBranchCreateModal({ mode: 'create' }),
+      },
+      {
+        id: 'create-checkout-branch',
+        label: 'Create branch and checkout',
+        icon: <GitBranch size={15} />,
+        onSelect: () => setBranchCreateModal({ mode: 'createAndCheckout' }),
+      },
+    ])
+  }
+
+  function submitBranchCreate(branchName: string, checkoutAfterCreate: boolean) {
+    setBranchCreateModal(null)
+    const action = checkoutAfterCreate ? 'createAndCheckoutBranch' : 'createBranch'
+    const task = checkoutAfterCreate
+      ? () => createAndCheckoutBranch(branchName)
+      : () => createBranch(branchName)
+
+    void runAction(action, task)
+  }
+
+  function checkoutLocalBranch(branch: string) {
+    if (branch === snapshot.currentBranch) {
+      return
     }
+
+    void runAction('checkout', () => checkout(branch))
+  }
+
+  function confirmDeleteBranch(branch: string, force: boolean) {
+    setBranchDeleteModal(null)
+    void runAction('deleteBranch', () => deleteLocalBranch(branch, force))
   }
 
   function openContextMenu(event: MouseEvent, items: ContextMenuItem[]) {
@@ -157,7 +201,12 @@ function App() {
       />
 
       <div className="flex min-h-0 flex-1">
-        <RepositorySidebar snapshot={snapshot} onBranchContextMenu={openBranchMenu} />
+        <RepositorySidebar
+          snapshot={snapshot}
+          onBranchContextMenu={openBranchMenu}
+          onLocalBranchDoubleClick={checkoutLocalBranch}
+          onLocalBranchMenuClick={openLocalBranchHeaderMenu}
+        />
 
         <section className="grid min-h-0 min-w-0 flex-1 grid-rows-[minmax(0,1fr)_260px] gap-3 overflow-hidden p-3">
           <GitHistory
@@ -174,6 +223,16 @@ function App() {
       </div>
 
       <ContextMenu menu={contextMenu} onClose={closeContextMenu} />
+      <BranchCreateModal
+        modal={branchCreateModal}
+        onClose={() => setBranchCreateModal(null)}
+        onSubmit={submitBranchCreate}
+      />
+      <BranchDeleteModal
+        modal={branchDeleteModal}
+        onClose={() => setBranchDeleteModal(null)}
+        onConfirm={confirmDeleteBranch}
+      />
     </main>
   )
 }

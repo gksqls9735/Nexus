@@ -12,12 +12,18 @@ export function ContextMenu({ menu, onClose }: ContextMenuProps) {
 
     window.addEventListener('click', onClose)
     window.addEventListener('blur', onClose)
-    window.addEventListener('keydown', onClose)
+    window.addEventListener('keydown', closeOnEscape)
 
     return () => {
       window.removeEventListener('click', onClose)
       window.removeEventListener('blur', onClose)
-      window.removeEventListener('keydown', onClose)
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        onClose()
+      }
     }
   }, [menu, onClose])
 
@@ -30,6 +36,7 @@ export function ContextMenu({ menu, onClose }: ContextMenuProps) {
       className="fixed z-50 min-w-56 overflow-hidden rounded-md border border-slate-200 bg-white py-1 text-sm shadow-xl"
       style={{ left: menu.x, top: menu.y }}
       onContextMenu={(event) => event.preventDefault()}
+      onClick={(event) => event.stopPropagation()}
     >
       {menu.items.map((item) => (
         <button

@@ -6,6 +6,8 @@ export type GitDeskApi = {
   pull: (repoPath: string) => Promise<void>
   push: (repoPath: string) => Promise<void>
   checkout: (repoPath: string, branch: string) => Promise<void>
+  createBranch: (repoPath: string, branch: string) => Promise<void>
+  createAndCheckoutBranch: (repoPath: string, branch: string) => Promise<void>
   merge: (repoPath: string, branch: string) => Promise<void>
   cherryPick: (repoPath: string, commitHash: string) => Promise<void>
   deleteLocalBranch: (repoPath: string, branch: string, force: boolean) => Promise<void>
@@ -46,6 +48,14 @@ export async function push() {
 
 export async function checkout(branch: string) {
   await getApi().checkout(activeRepoPath, branch)
+}
+
+export async function createBranch(branch: string) {
+  await getApi().createBranch(activeRepoPath, branch)
+}
+
+export async function createAndCheckoutBranch(branch: string) {
+  await getApi().createAndCheckoutBranch(activeRepoPath, branch)
 }
 
 export async function merge(branch: string) {
