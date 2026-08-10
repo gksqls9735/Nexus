@@ -1,5 +1,6 @@
 import { Info } from 'lucide-react'
 import type { GitHistoryItem } from '../types/git'
+import { formatCommitDate } from '../utils/dateFormat'
 import { Panel } from './ui/Panel'
 
 type CommitDetailsProps = {
@@ -21,7 +22,7 @@ export function CommitDetails({ commit, message, error }: CommitDetailsProps) {
               <dt className="font-semibold uppercase tracking-wide text-slate-500">Author</dt>
               <dd className="text-slate-700">{commit.author}</dd>
               <dt className="font-semibold uppercase tracking-wide text-slate-500">Date</dt>
-              <dd className="text-slate-700">{commit.date}</dd>
+              <dd className="text-slate-700" title={commit.date}>{formatCommitDate(commit.date)}</dd>
             </dl>
           </div>
         ) : (

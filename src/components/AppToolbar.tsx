@@ -53,7 +53,17 @@ export function AppToolbar({
   )
 }
 
-function ToolbarButton({ label, icon, disabled, onClick }: { label: string; icon: ReactNode; disabled?: boolean; onClick: () => void }) {
+function ToolbarButton({
+  label,
+  icon,
+  disabled,
+  onClick,
+}: {
+  label: string
+  icon: ReactNode
+  disabled?: boolean
+  onClick: () => void
+}) {
   return (
     <button
       type="button"

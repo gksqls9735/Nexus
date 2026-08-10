@@ -3,6 +3,7 @@ export type GitHistoryItem = {
   message: string
   author: string
   date: string
+  syncStatus: 'synced' | 'unpushed'
 }
 
 export type ChangedFile = {

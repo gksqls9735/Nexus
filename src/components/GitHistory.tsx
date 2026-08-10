@@ -1,6 +1,7 @@
 import { GitCommitHorizontal } from 'lucide-react'
 import type { MouseEvent } from 'react'
 import type { GitHistoryItem } from '../types/git'
+import { formatCommitDate } from '../utils/dateFormat'
 import { Panel } from './ui/Panel'
 
 type GitHistoryProps = {
@@ -21,7 +22,7 @@ export function GitHistory({ commits, selectedCommit, onSelectCommit, onCommitCo
               <th className="border-b border-slate-200 px-3 py-2">Message</th>
               <th className="w-36 border-b border-slate-200 px-3 py-2">Hash</th>
               <th className="w-44 border-b border-slate-200 px-3 py-2">Author</th>
-              <th className="w-44 border-b border-slate-200 px-3 py-2">Date</th>
+              <th className="w-40 border-b border-slate-200 px-3 py-2">Date</th>
             </tr>
           </thead>
           <tbody>
@@ -33,14 +34,25 @@ export function GitHistory({ commits, selectedCommit, onSelectCommit, onCommitCo
                 className={`cursor-default transition hover:bg-slate-50 ${selectedCommit === commit.hash ? 'bg-sky-50' : ''}`}
               >
                 <td className="border-b border-slate-100 px-3 py-0">
-                  <GraphCell isFirst={index === 0} isLast={index === commits.length - 1} />
+                  <GraphCell
+                    isFirst={index === 0}
+                    isLast={index === commits.length - 1}
+                    syncStatus={commit.syncStatus}
+                  />
                 </td>
                 <td className="border-b border-slate-100 px-3 py-1.5 text-slate-900">
-                  <div className="truncate font-medium">{commit.message}</div>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="truncate font-medium">{commit.message}</span>
+                    {commit.syncStatus === 'unpushed' && (
+                      <span className="shrink-0 rounded bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">unpushed</span>
+                    )}
+                  </div>
                 </td>
                 <td className="border-b border-slate-100 px-3 py-1.5 font-mono text-xs text-slate-500">{commit.hash.slice(0, 10)}</td>
                 <td className="truncate border-b border-slate-100 px-3 py-1.5 text-slate-600">{commit.author}</td>
-                <td className="border-b border-slate-100 px-3 py-1.5 text-slate-600">{commit.date}</td>
+                <td className="whitespace-nowrap border-b border-slate-100 px-3 py-1.5 text-slate-600" title={commit.date}>
+                  {formatCommitDate(commit.date)}
+                </td>
               </tr>
             ))}
             {commits.length === 0 && (
@@ -57,13 +69,24 @@ export function GitHistory({ commits, selectedCommit, onSelectCommit, onCommitCo
   )
 }
 
-function GraphCell({ isFirst, isLast }: { isFirst: boolean; isLast: boolean }) {
+function GraphCell({
+  isFirst,
+  isLast,
+  syncStatus,
+}: {
+  isFirst: boolean
+  isLast: boolean
+  syncStatus: GitHistoryItem['syncStatus']
+}) {
+  const colorClass = syncStatus === 'unpushed' ? 'border-amber-500 bg-amber-50' : 'border-sky-500 bg-white'
+  const lineClass = syncStatus === 'unpushed' ? 'bg-amber-300' : 'bg-slate-300'
+
   return (
     <div className="relative flex h-12 items-center justify-center">
       <span
-        className={`absolute left-1/2 w-px -translate-x-1/2 bg-slate-300 ${isFirst ? 'top-1/2' : 'top-0'} ${isLast ? 'bottom-1/2' : 'bottom-0'}`}
+        className={`absolute left-1/2 w-px -translate-x-1/2 ${lineClass} ${isFirst ? 'top-1/2' : 'top-0'} ${isLast ? 'bottom-1/2' : 'bottom-0'}`}
       />
-      <span className="relative h-3 w-3 rounded-full border-2 border-sky-500 bg-white" />
+      <span className={`relative h-3 w-3 rounded-full border-2 ${colorClass}`} />
     </div>
   )
 }

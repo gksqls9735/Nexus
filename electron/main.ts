@@ -120,6 +120,7 @@ async function getSnapshot(repoPath: string) {
     git.getRemotes(true),
     git.log({ maxCount: 40 }),
   ])
+  const unpushedHashes = await getUnpushedHashes(git)
 
   return {
     repoPath,
@@ -135,12 +136,22 @@ async function getSnapshot(repoPath: string) {
       message: commit.message,
       author: commit.author_name,
       date: commit.date,
+      syncStatus: unpushedHashes.has(commit.hash) ? 'unpushed' : 'synced',
     })),
     changedFiles: status.files.map((file) => ({
       path: file.path,
       index: file.index,
       workingTree: file.working_dir,
     })),
+  }
+}
+
+async function getUnpushedHashes(git: SimpleGit) {
+  try {
+    const output = await git.raw(['log', '--format=%H', '@{u}..HEAD'])
+    return new Set(output.split(/\r?\n/).filter(Boolean))
+  } catch {
+    return new Set<string>()
   }
 }
 
