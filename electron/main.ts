@@ -1,0 +1,153 @@
+import { app, BrowserWindow, dialog, ipcMain } from 'electron'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { simpleGit } from 'simple-git'
+import type { OpenDialogOptions } from 'electron'
+import type { SimpleGit } from 'simple-git'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const isDev = !app.isPackaged
+
+let mainWindow: BrowserWindow | null = null
+
+async function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1320,
+    height: 860,
+    minWidth: 980,
+    minHeight: 700,
+    title: 'Local Git Desk',
+    backgroundColor: '#f1f5f9',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  })
+
+  if (isDev && process.env.VITE_DEV_SERVER_URL) {
+    await mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
+    return
+  }
+
+  await mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
+}
+
+app.whenReady().then(async () => {
+  registerGitHandlers()
+  await createWindow()
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      void createWindow()
+    }
+  })
+})
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit()
+  }
+})
+
+function registerGitHandlers() {
+  ipcMain.handle('repo:select', async () => {
+    const dialogOptions: OpenDialogOptions = {
+      title: '로컬 Git 저장소 선택',
+      properties: ['openDirectory'],
+    }
+    const result = mainWindow
+      ? await dialog.showOpenDialog(mainWindow, dialogOptions)
+      : await dialog.showOpenDialog(dialogOptions)
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return ''
+    }
+
+    const repoPath = result.filePaths[0]
+    await ensureGitRepo(repoPath)
+    return repoPath
+  })
+
+  ipcMain.handle('repo:snapshot', async (_event, repoPath: string) => getSnapshot(repoPath))
+  ipcMain.handle('repo:pull', async (_event, repoPath: string) => {
+    await getGit(repoPath).pull()
+  })
+  ipcMain.handle('repo:push', async (_event, repoPath: string) => {
+    await getGit(repoPath).push()
+  })
+  ipcMain.handle('repo:checkout', async (_event, repoPath: string, branch: string) => {
+    await getGit(repoPath).checkout(branch)
+  })
+  ipcMain.handle('repo:merge', async (_event, repoPath: string, branch: string) => {
+    await getGit(repoPath).merge([branch])
+  })
+  ipcMain.handle('repo:cherryPick', async (_event, repoPath: string, commitHash: string) => {
+    await getGit(repoPath).raw(['cherry-pick', commitHash])
+  })
+  ipcMain.handle('repo:deleteLocalBranch', async (_event, repoPath: string, branch: string, force: boolean) => {
+    await getGit(repoPath).branch([force ? '-D' : '-d', branch])
+  })
+}
+
+async function getSnapshot(repoPath: string) {
+  const git = getGit(repoPath)
+  await ensureGitRepo(repoPath)
+
+  const [status, localBranches, remoteBranches, remotes, log] = await Promise.all([
+    git.status(),
+    git.branchLocal(),
+    git.branch(['-r']),
+    git.getRemotes(true),
+    git.log({ maxCount: 40 }),
+  ])
+
+  return {
+    repoPath,
+    currentBranch: status.current || localBranches.current || '',
+    remoteUrl: getPrimaryRemoteUrl(remotes),
+    ahead: status.ahead,
+    behind: status.behind,
+    isClean: status.isClean(),
+    localBranches: localBranches.all,
+    remoteBranches: remoteBranches.all.filter((branch) => !branch.includes('HEAD ->')),
+    history: log.all.map((commit) => ({
+      hash: commit.hash,
+      message: commit.message,
+      author: commit.author_name,
+      date: commit.date,
+    })),
+    changedFiles: status.files.map((file) => ({
+      path: file.path,
+      index: file.index,
+      workingTree: file.working_dir,
+    })),
+  }
+}
+
+async function ensureGitRepo(repoPath: string) {
+  const isRepo = await getGit(repoPath).checkIsRepo()
+  if (!isRepo) {
+    throw new Error('선택한 폴더는 Git 저장소가 아닙니다.')
+  }
+}
+
+function getGit(repoPath: string): SimpleGit {
+  if (!repoPath) {
+    throw new Error('먼저 로컬 Git 저장소를 선택하세요.')
+  }
+
+  return simpleGit({
+    baseDir: repoPath,
+    binary: 'git',
+    maxConcurrentProcesses: 1,
+    trimmed: false,
+  })
+}
+
+function getPrimaryRemoteUrl(remotes: Array<{ name: string; refs: { fetch: string; push: string } }>) {
+  const origin = remotes.find((remote) => remote.name === 'origin')
+  const remote = origin ?? remotes[0]
+  return remote?.refs.fetch || remote?.refs.push || ''
+}

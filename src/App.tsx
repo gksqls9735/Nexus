@@ -1,122 +1,186 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { GitBranch, GitMerge, Pickaxe, Trash2 } from 'lucide-react'
+import { useCallback, useState } from 'react'
+import type { MouseEvent } from 'react'
+import { AppToolbar } from './components/AppToolbar'
+import { ChangedFiles } from './components/ChangedFiles'
+import { CommitDetails } from './components/CommitDetails'
+import { ContextMenu } from './components/ContextMenu'
+import { GitHistory } from './components/GitHistory'
+import { RepositorySidebar } from './components/RepositorySidebar'
+import {
+  checkout,
+  cherryPick,
+  deleteLocalBranch,
+  emptySnapshot,
+  getSnapshot,
+  merge,
+  pull,
+  push,
+  selectRepository,
+} from './services/gitElectronService'
+import type { ContextMenuItem, ContextMenuState } from './types/contextMenu'
+import type { GitAction, GitHistoryItem, RepoSnapshot } from './types/git'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [snapshot, setSnapshot] = useState<RepoSnapshot>(emptySnapshot)
+  const [selectedCommit, setSelectedCommit] = useState('')
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const [busyAction, setBusyAction] = useState<GitAction | 'select' | 'refresh' | ''>('')
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>(null)
+  const selectedCommitDetail = snapshot.history.find((commit) => commit.hash === selectedCommit)
+
+  const closeContextMenu = useCallback(() => setContextMenu(null), [])
+
+  async function refresh() {
+    if (!snapshot.repoPath) return
+    await runWithBusyState('refresh', async () => {
+      applySnapshot(await getSnapshot())
+    })
+  }
+
+  async function handleSelectRepository() {
+    await runWithBusyState('select', async () => {
+      const repoPath = await selectRepository()
+      if (!repoPath) return
+      applySnapshot(await getSnapshot())
+      setMessage('저장소를 불러왔습니다.')
+    })
+  }
+
+  async function runAction(action: GitAction, task: () => Promise<void>) {
+    if (!snapshot.repoPath) return
+    await runWithBusyState(action, async () => {
+      await task()
+      applySnapshot(await getSnapshot())
+      setMessage('작업이 완료되었습니다.')
+    })
+  }
+
+  async function runWithBusyState(action: GitAction | 'select' | 'refresh', task: () => Promise<void>) {
+    setBusyAction(action)
+    setError('')
+    setMessage('')
+    try {
+      await task()
+    } catch (caught) {
+      setError(getErrorMessage(caught))
+    } finally {
+      setBusyAction('')
+    }
+  }
+
+  function applySnapshot(nextSnapshot: RepoSnapshot) {
+    setSnapshot(nextSnapshot)
+  }
+
+  function handleSelectCommit(commitHash: string) {
+    setSelectedCommit(commitHash)
+  }
+
+  function openCommitMenu(event: MouseEvent, commit: GitHistoryItem) {
+    event.preventDefault()
+    handleSelectCommit(commit.hash)
+    openContextMenu(event, [
+      {
+        id: 'cherry-pick',
+        label: `Cherry-pick ${commit.hash.slice(0, 8)}`,
+        icon: <Pickaxe size={15} />,
+        onSelect: () => void runAction('cherryPick', () => cherryPick(commit.hash)),
+      },
+    ])
+  }
+
+  function openBranchMenu(event: MouseEvent, branch: string) {
+    event.preventDefault()
+    const isCurrent = branch === snapshot.currentBranch
+    const isRemote = branch.includes('/')
+    const items: ContextMenuItem[] = [
+      {
+        id: 'checkout',
+        label: `Checkout ${branch}`,
+        icon: <GitBranch size={15} />,
+        disabled: isCurrent,
+        onSelect: () => void runAction('checkout', () => checkout(branch)),
+      },
+      {
+        id: 'merge',
+        label: `Merge ${branch} into ${snapshot.currentBranch}`,
+        icon: <GitMerge size={15} />,
+        disabled: isCurrent,
+        onSelect: () => void runAction('merge', () => merge(branch)),
+      },
+      {
+        id: 'delete',
+        label: `Delete ${branch}`,
+        icon: <Trash2 size={15} />,
+        danger: true,
+        disabled: isCurrent || isRemote,
+        onSelect: () => confirmDeleteBranch(branch, false),
+      },
+      {
+        id: 'force-delete',
+        label: `Force delete ${branch}`,
+        icon: <Trash2 size={15} />,
+        danger: true,
+        disabled: isCurrent || isRemote,
+        onSelect: () => confirmDeleteBranch(branch, true),
+      },
+    ]
+    openContextMenu(event, items)
+  }
+
+  function confirmDeleteBranch(branch: string, force: boolean) {
+    const mode = force ? '강제 삭제' : '삭제'
+    if (window.confirm(`${branch} 브랜치를 ${mode}할까요?`)) {
+      void runAction('deleteBranch', () => deleteLocalBranch(branch, force))
+    }
+  }
+
+  function openContextMenu(event: MouseEvent, items: ContextMenuItem[]) {
+    setContextMenu({
+      x: Math.min(event.clientX, window.innerWidth - 240),
+      y: Math.min(event.clientY, window.innerHeight - 180),
+      items,
+    })
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <main className="flex h-screen min-h-0 flex-col overflow-hidden bg-slate-100 text-slate-950">
+      <AppToolbar
+        snapshot={snapshot}
+        busyAction={busyAction}
+        onSelectRepository={handleSelectRepository}
+        onRefresh={() => void refresh()}
+        onPull={() => void runAction('pull', pull)}
+        onPush={() => void runAction('push', push)}
+      />
 
-      <div className="ticks"></div>
+      <div className="flex min-h-0 flex-1">
+        <RepositorySidebar snapshot={snapshot} onBranchContextMenu={openBranchMenu} />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        <section className="grid min-h-0 min-w-0 flex-1 grid-rows-[minmax(0,1fr)_260px] gap-3 overflow-hidden p-3">
+          <GitHistory
+            commits={snapshot.history}
+            selectedCommit={selectedCommit}
+            onSelectCommit={handleSelectCommit}
+            onCommitContextMenu={openCommitMenu}
+          />
+          <div className="grid min-h-0 grid-cols-[1fr_360px] gap-3">
+            <CommitDetails commit={selectedCommitDetail} message={message} error={error} />
+            <ChangedFiles files={snapshot.changedFiles} />
+          </div>
+        </section>
+      </div>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      <ContextMenu menu={contextMenu} onClose={closeContextMenu} />
+    </main>
   )
+}
+
+function getErrorMessage(caught: unknown) {
+  if (caught instanceof Error) return caught.message
+  return String(caught)
 }
 
 export default App
