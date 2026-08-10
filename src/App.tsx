@@ -22,6 +22,8 @@ import {
   getCommitDetails,
   getSnapshot,
   merge,
+  onRepositoryChanged,
+  onRepositoryWatchError,
   pull,
   push,
   selectRepository,
@@ -54,6 +56,40 @@ function App() {
     const timeoutId = window.setTimeout(closeNotification, error ? 7000 : 3000)
     return () => window.clearTimeout(timeoutId)
   }, [message, error, closeNotification])
+
+  useEffect(() => {
+    const unsubscribeChanged = onRepositoryChanged((repoPath) => {
+      if (!snapshot.repoPath || repoPath !== snapshot.repoPath || busyAction) {
+        return
+      }
+
+      void refreshAfterRepositoryChange()
+    })
+    const unsubscribeWatchError = onRepositoryWatchError((watchError) => setError(watchError))
+
+    return () => {
+      unsubscribeChanged()
+      unsubscribeWatchError()
+    }
+
+    async function refreshAfterRepositoryChange() {
+      try {
+        const nextSnapshot = await getSnapshot()
+        setSnapshot(nextSnapshot)
+
+        if (selectedCommit) {
+          try {
+            setSelectedCommitDetails(await getCommitDetails(selectedCommit))
+          } catch {
+            setSelectedCommitDetails(undefined)
+            setSelectedCommit('')
+          }
+        }
+      } catch (caught) {
+        setError(getErrorMessage(caught))
+      }
+    }
+  }, [busyAction, selectedCommit, snapshot.repoPath])
 
   async function refresh() {
     if (!snapshot.repoPath) return

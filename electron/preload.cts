@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { IpcRendererEvent } from 'electron'
 
 contextBridge.exposeInMainWorld('gitDesk', {
   selectRepository: () => ipcRenderer.invoke('repo:select'),
@@ -15,4 +16,14 @@ contextBridge.exposeInMainWorld('gitDesk', {
   cherryPick: (repoPath: string, commitHash: string) => ipcRenderer.invoke('repo:cherryPick', repoPath, commitHash),
   deleteLocalBranch: (repoPath: string, branch: string, force: boolean) =>
     ipcRenderer.invoke('repo:deleteLocalBranch', repoPath, branch, force),
+  onRepositoryChanged: (callback: (repoPath: string) => void) => {
+    const listener = (_event: IpcRendererEvent, repoPath: string) => callback(repoPath)
+    ipcRenderer.on('repo:changed', listener)
+    return () => ipcRenderer.removeListener('repo:changed', listener)
+  },
+  onRepositoryWatchError: (callback: (message: string) => void) => {
+    const listener = (_event: IpcRendererEvent, message: string) => callback(message)
+    ipcRenderer.on('repo:watchError', listener)
+    return () => ipcRenderer.removeListener('repo:watchError', listener)
+  },
 })

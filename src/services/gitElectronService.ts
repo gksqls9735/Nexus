@@ -13,6 +13,8 @@ export type GitDeskApi = {
   merge: (repoPath: string, branch: string) => Promise<void>
   cherryPick: (repoPath: string, commitHash: string) => Promise<void>
   deleteLocalBranch: (repoPath: string, branch: string, force: boolean) => Promise<void>
+  onRepositoryChanged: (callback: (repoPath: string) => void) => () => void
+  onRepositoryWatchError: (callback: (message: string) => void) => () => void
 }
 
 let activeRepoPath = ''
@@ -78,6 +80,14 @@ export async function cherryPick(commitHash: string) {
 
 export async function deleteLocalBranch(branch: string, force: boolean) {
   await getApi().deleteLocalBranch(activeRepoPath, branch, force)
+}
+
+export function onRepositoryChanged(callback: (repoPath: string) => void) {
+  return getApi().onRepositoryChanged(callback)
+}
+
+export function onRepositoryWatchError(callback: (message: string) => void) {
+  return getApi().onRepositoryWatchError(callback)
 }
 
 function getApi() {

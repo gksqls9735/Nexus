@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron'
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { simpleGit } from 'simple-git'
@@ -10,6 +11,12 @@ const __dirname = path.dirname(__filename)
 const isDev = !app.isPackaged
 
 let mainWindow: BrowserWindow | null = null
+let repositoryWatcher: fs.FSWatcher | null = null
+let repositoryWatchPath = ''
+let repositoryWatchTimeout: NodeJS.Timeout | null = null
+let repositoryPollInterval: NodeJS.Timeout | null = null
+let repositoryStateSignature = ''
+let repositoryPollRunning = false
 
 async function createWindow() {
   mainWindow = new BrowserWindow({
@@ -46,9 +53,14 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', () => {
+  stopRepositoryWatch()
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('before-quit', () => {
+  stopRepositoryWatch()
 })
 
 function registerGitHandlers() {
@@ -67,6 +79,7 @@ function registerGitHandlers() {
 
     const repoPath = result.filePaths[0]
     await ensureGitRepo(repoPath)
+    startRepositoryWatch(repoPath)
     return repoPath
   })
 
@@ -110,6 +123,123 @@ function registerGitHandlers() {
   ipcMain.handle('repo:deleteLocalBranch', async (_event, repoPath: string, branch: string, force: boolean) => {
     await getGit(repoPath).branch([force ? '-D' : '-d', branch])
   })
+}
+
+function startRepositoryWatch(repoPath: string) {
+  if (repositoryWatchPath === repoPath && repositoryWatcher) {
+    return
+  }
+
+  stopRepositoryWatch()
+  repositoryWatchPath = repoPath
+
+  try {
+    repositoryWatcher = fs.watch(repoPath, { recursive: true }, (_eventType, filename) => {
+      if (shouldIgnoreWatchEvent(filename?.toString() ?? '')) {
+        return
+      }
+
+      scheduleRepositoryChanged(repoPath)
+    })
+  } catch (caught) {
+    mainWindow?.webContents.send('repo:watchError', getErrorMessage(caught))
+  }
+
+  startRepositoryPolling(repoPath)
+}
+
+function stopRepositoryWatch() {
+  repositoryWatcher?.close()
+  repositoryWatcher = null
+  repositoryWatchPath = ''
+
+  if (repositoryWatchTimeout) {
+    clearTimeout(repositoryWatchTimeout)
+    repositoryWatchTimeout = null
+  }
+
+  if (repositoryPollInterval) {
+    clearInterval(repositoryPollInterval)
+    repositoryPollInterval = null
+  }
+
+  repositoryStateSignature = ''
+  repositoryPollRunning = false
+}
+
+function scheduleRepositoryChanged(repoPath: string) {
+  if (repositoryWatchTimeout) {
+    clearTimeout(repositoryWatchTimeout)
+  }
+
+  repositoryWatchTimeout = setTimeout(() => {
+    void notifyRepositoryChanged(repoPath)
+  }, 650)
+}
+
+async function notifyRepositoryChanged(repoPath: string) {
+  try {
+    await updateRepositoryStateSignature(repoPath)
+  } catch {
+    // A refresh is still useful even if signature update fails momentarily.
+  }
+
+  mainWindow?.webContents.send('repo:changed', repoPath)
+}
+
+function shouldIgnoreWatchEvent(filename: string) {
+  const normalized = filename.replaceAll('\\', '/')
+  const ignoredSegments = ['/node_modules/', 'node_modules/', '/dist/', 'dist/', '/dist-electron/', 'dist-electron/', '/release/', 'release/']
+
+  if (ignoredSegments.some((segment) => normalized.includes(segment))) {
+    return true
+  }
+
+  return normalized.startsWith('.git/objects/')
+}
+
+function startRepositoryPolling(repoPath: string) {
+  void updateRepositoryStateSignature(repoPath)
+
+  repositoryPollInterval = setInterval(() => {
+    void detectRepositoryStateChange(repoPath)
+  }, 2500)
+}
+
+async function updateRepositoryStateSignature(repoPath: string) {
+  repositoryStateSignature = await getRepositoryStateSignature(repoPath)
+}
+
+async function detectRepositoryStateChange(repoPath: string) {
+  if (repositoryPollRunning) {
+    return
+  }
+
+  repositoryPollRunning = true
+  try {
+    const nextSignature = await getRepositoryStateSignature(repoPath)
+    if (repositoryStateSignature && nextSignature !== repositoryStateSignature) {
+      repositoryStateSignature = nextSignature
+      scheduleRepositoryChanged(repoPath)
+      return
+    }
+
+    repositoryStateSignature = nextSignature
+  } catch (caught) {
+    mainWindow?.webContents.send('repo:watchError', getErrorMessage(caught))
+  } finally {
+    repositoryPollRunning = false
+  }
+}
+
+async function getRepositoryStateSignature(repoPath: string) {
+  const git = getGit(repoPath)
+  const [head, status] = await Promise.all([
+    git.raw(['rev-parse', 'HEAD']).catch(() => ''),
+    git.raw(['status', '--porcelain=v1', '--branch']),
+  ])
+
+  return `${head.trim()}\n${status.trim()}`
 }
 
 async function getCommitDetails(repoPath: string, commitHash: string) {
@@ -213,4 +343,9 @@ function getPrimaryRemoteUrl(remotes: Array<{ name: string; refs: { fetch: strin
   const origin = remotes.find((remote) => remote.name === 'origin')
   const remote = origin ?? remotes[0]
   return remote?.refs.fetch || remote?.refs.push || ''
+}
+
+function getErrorMessage(caught: unknown) {
+  if (caught instanceof Error) return caught.message
+  return String(caught)
 }
