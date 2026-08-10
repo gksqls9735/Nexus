@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 contextBridge.exposeInMainWorld('gitDesk', {
   selectRepository: () => ipcRenderer.invoke('repo:select'),
   getSnapshot: (repoPath: string) => ipcRenderer.invoke('repo:snapshot', repoPath),
+  getCommitDetails: (repoPath: string, commitHash: string) => ipcRenderer.invoke('repo:commitDetails', repoPath, commitHash),
   pull: (repoPath: string) => ipcRenderer.invoke('repo:pull', repoPath),
   push: (repoPath: string) => ipcRenderer.invoke('repo:push', repoPath),
   connectRemote: (repoPath: string, remoteUrl: string) => ipcRenderer.invoke('repo:connectRemote', repoPath, remoteUrl),

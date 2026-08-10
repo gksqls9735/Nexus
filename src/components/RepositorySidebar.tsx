@@ -25,7 +25,7 @@ export function RepositorySidebar({
         </p>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto p-2">
+      <div className="app-scrollbar min-h-0 flex-1 overflow-auto p-2">
         <BranchSection
           title="Local Branches"
           icon={<GitBranch size={15} />}

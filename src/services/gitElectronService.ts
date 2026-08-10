@@ -1,8 +1,9 @@
-import type { RepoSnapshot } from '../types/git'
+import type { CommitDetailsData, RepoSnapshot } from '../types/git'
 
 export type GitDeskApi = {
   selectRepository: () => Promise<string>
   getSnapshot: (repoPath: string) => Promise<RepoSnapshot>
+  getCommitDetails: (repoPath: string, commitHash: string) => Promise<CommitDetailsData>
   pull: (repoPath: string) => Promise<void>
   push: (repoPath: string) => Promise<void>
   connectRemote: (repoPath: string, remoteUrl: string) => Promise<void>
@@ -37,6 +38,10 @@ export async function selectRepository() {
 
 export async function getSnapshot() {
   return getApi().getSnapshot(activeRepoPath)
+}
+
+export async function getCommitDetails(commitHash: string) {
+  return getApi().getCommitDetails(activeRepoPath, commitHash)
 }
 
 export async function pull() {

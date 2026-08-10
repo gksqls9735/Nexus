@@ -1,6 +1,7 @@
 import { GitBranch, GitMerge, Pickaxe, Trash2 } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { MouseEvent } from 'react'
+import { AppNotification } from './components/AppNotification'
 import { AppToolbar } from './components/AppToolbar'
 import { BranchCreateModal } from './components/BranchCreateModal'
 import { BranchDeleteModal } from './components/BranchDeleteModal'
@@ -18,6 +19,7 @@ import {
   createBranch,
   deleteLocalBranch,
   emptySnapshot,
+  getCommitDetails,
   getSnapshot,
   merge,
   pull,
@@ -25,7 +27,7 @@ import {
   selectRepository,
 } from './services/gitElectronService'
 import type { ContextMenuItem, ContextMenuState } from './types/contextMenu'
-import type { GitAction, GitHistoryItem, RepoSnapshot } from './types/git'
+import type { CommitDetailsData, GitAction, GitHistoryItem, RepoSnapshot } from './types/git'
 import type { BranchCreateModalState, BranchDeleteModalState, RemoteConnectModalState } from './types/modal'
 
 function App() {
@@ -33,14 +35,25 @@ function App() {
   const [selectedCommit, setSelectedCommit] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [selectedCommitDetails, setSelectedCommitDetails] = useState<CommitDetailsData | undefined>()
+  const [commitDetailsLoading, setCommitDetailsLoading] = useState(false)
   const [busyAction, setBusyAction] = useState<GitAction | 'select' | 'refresh' | ''>('')
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null)
   const [branchCreateModal, setBranchCreateModal] = useState<BranchCreateModalState>(null)
   const [branchDeleteModal, setBranchDeleteModal] = useState<BranchDeleteModalState>(null)
   const [remoteConnectModal, setRemoteConnectModal] = useState<RemoteConnectModalState>(null)
-  const selectedCommitDetail = snapshot.history.find((commit) => commit.hash === selectedCommit)
-
   const closeContextMenu = useCallback(() => setContextMenu(null), [])
+  const closeNotification = useCallback(() => {
+    setMessage('')
+    setError('')
+  }, [])
+
+  useEffect(() => {
+    if (!message && !error) return
+
+    const timeoutId = window.setTimeout(closeNotification, error ? 7000 : 3000)
+    return () => window.clearTimeout(timeoutId)
+  }, [message, error, closeNotification])
 
   async function refresh() {
     if (!snapshot.repoPath) return
@@ -86,6 +99,19 @@ function App() {
 
   function handleSelectCommit(commitHash: string) {
     setSelectedCommit(commitHash)
+    setSelectedCommitDetails(undefined)
+    void loadCommitDetails(commitHash)
+  }
+
+  async function loadCommitDetails(commitHash: string) {
+    setCommitDetailsLoading(true)
+    try {
+      setSelectedCommitDetails(await getCommitDetails(commitHash))
+    } catch (caught) {
+      setError(getErrorMessage(caught))
+    } finally {
+      setCommitDetailsLoading(false)
+    }
   }
 
   function openCommitMenu(event: MouseEvent, commit: GitHistoryItem) {
@@ -217,15 +243,15 @@ function App() {
           onLocalBranchMenuClick={openLocalBranchHeaderMenu}
         />
 
-        <section className="grid min-h-0 min-w-0 flex-1 grid-rows-[minmax(0,1fr)_260px] gap-3 overflow-hidden p-3">
+        <section className="grid min-h-0 min-w-0 flex-1 grid-rows-[minmax(0,1fr)_340px] gap-3 overflow-hidden p-3">
           <GitHistory
             commits={snapshot.history}
             selectedCommit={selectedCommit}
             onSelectCommit={handleSelectCommit}
             onCommitContextMenu={openCommitMenu}
           />
-          <div className="grid min-h-0 grid-cols-[1fr_360px] gap-3">
-            <CommitDetails commit={selectedCommitDetail} message={message} error={error} />
+          <div className="grid min-h-0 grid-cols-[minmax(0,1fr)_420px] gap-3">
+            <CommitDetails details={selectedCommitDetails} loading={commitDetailsLoading} />
             <ChangedFiles files={snapshot.changedFiles} />
           </div>
         </section>
@@ -247,6 +273,7 @@ function App() {
         onClose={() => setRemoteConnectModal(null)}
         onSubmit={submitRemoteConnect}
       />
+      <AppNotification message={message} error={error} onClose={closeNotification} />
     </main>
   )
 }

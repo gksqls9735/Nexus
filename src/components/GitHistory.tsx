@@ -14,15 +14,15 @@ type GitHistoryProps = {
 export function GitHistory({ commits, selectedCommit, onSelectCommit, onCommitContextMenu }: GitHistoryProps) {
   return (
     <Panel title="History" icon={<GitCommitHorizontal size={18} />}>
-      <div className="h-full min-h-0 overflow-auto">
-        <table className="w-full table-fixed border-collapse text-left text-sm">
-          <thead className="sticky top-0 bg-white text-xs uppercase tracking-wide text-slate-500">
+      <div className="app-scrollbar h-full min-h-0 overflow-auto">
+        <table className="w-full table-fixed border-separate border-spacing-0 text-left text-sm">
+          <thead className="text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="w-16 border-b border-slate-200 px-3 py-2">Graph</th>
-              <th className="border-b border-slate-200 px-3 py-2">Message</th>
-              <th className="w-36 border-b border-slate-200 px-3 py-2">Hash</th>
-              <th className="w-44 border-b border-slate-200 px-3 py-2">Author</th>
-              <th className="w-40 border-b border-slate-200 px-3 py-2">Date</th>
+              <th className="sticky top-0 z-20 w-16 border-b border-slate-200 bg-white px-3 py-2 text-center">Graph</th>
+              <th className="sticky top-0 z-20 border-b border-slate-200 bg-white px-3 py-2">Message</th>
+              <th className="sticky top-0 z-20 w-36 border-b border-slate-200 bg-white px-3 py-2">Hash</th>
+              <th className="sticky top-0 z-20 w-44 border-b border-slate-200 bg-white px-3 py-2">Author</th>
+              <th className="sticky top-0 z-20 w-40 border-b border-slate-200 bg-white px-3 py-2">Date</th>
             </tr>
           </thead>
           <tbody>
@@ -33,7 +33,7 @@ export function GitHistory({ commits, selectedCommit, onSelectCommit, onCommitCo
                 onContextMenu={(event) => onCommitContextMenu(event, commit)}
                 className={`cursor-default transition hover:bg-slate-50 ${selectedCommit === commit.hash ? 'bg-sky-50' : ''}`}
               >
-                <td className="border-b border-slate-100 px-3 py-0">
+                <td className="overflow-hidden border-b border-slate-100 px-3 py-0">
                   <GraphCell
                     isFirst={index === 0}
                     isLast={index === commits.length - 1}
@@ -82,10 +82,9 @@ function GraphCell({
   const lineClass = syncStatus === 'unpushed' ? 'bg-amber-300' : 'bg-slate-300'
 
   return (
-    <div className="relative flex h-12 items-center justify-center">
-      <span
-        className={`absolute left-1/2 w-px -translate-x-1/2 ${lineClass} ${isFirst ? 'top-1/2' : 'top-0'} ${isLast ? 'bottom-1/2' : 'bottom-0'}`}
-      />
+    <div className="relative flex h-11 items-center justify-center overflow-hidden">
+      {!isFirst && <span className={`absolute bottom-1/2 left-1/2 top-0 w-px -translate-x-1/2 ${lineClass}`} />}
+      {!isLast && <span className={`absolute bottom-0 left-1/2 top-1/2 w-px -translate-x-1/2 ${lineClass}`} />}
       <span className={`relative h-3 w-3 rounded-full border-2 ${colorClass}`} />
     </div>
   )

@@ -71,6 +71,9 @@ function registerGitHandlers() {
   })
 
   ipcMain.handle('repo:snapshot', async (_event, repoPath: string) => getSnapshot(repoPath))
+  ipcMain.handle('repo:commitDetails', async (_event, repoPath: string, commitHash: string) =>
+    getCommitDetails(repoPath, commitHash),
+  )
   ipcMain.handle('repo:pull', async (_event, repoPath: string) => {
     await getGit(repoPath).pull()
   })
@@ -107,6 +110,37 @@ function registerGitHandlers() {
   ipcMain.handle('repo:deleteLocalBranch', async (_event, repoPath: string, branch: string, force: boolean) => {
     await getGit(repoPath).branch([force ? '-D' : '-d', branch])
   })
+}
+
+async function getCommitDetails(repoPath: string, commitHash: string) {
+  const output = await getGit(repoPath).raw([
+    'show',
+    '--name-status',
+    '--format=format:%B%x1e',
+    commitHash,
+  ])
+  const [messagePart = '', filesPart = ''] = output.split('\x1e')
+
+  return {
+    hash: commitHash,
+    message: messagePart.trim(),
+    files: parseCommitFiles(filesPart),
+  }
+}
+
+function parseCommitFiles(value: string) {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [status, ...paths] = line.split('\t')
+      return {
+        status,
+        path: paths.join(' -> '),
+      }
+    })
+    .filter((file) => file.path)
 }
 
 async function getSnapshot(repoPath: string) {

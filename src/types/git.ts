@@ -12,6 +12,17 @@ export type ChangedFile = {
   workingTree: string
 }
 
+export type CommitChangedFile = {
+  path: string
+  status: string
+}
+
+export type CommitDetailsData = {
+  hash: string
+  message: string
+  files: CommitChangedFile[]
+}
+
 export type RepoSnapshot = {
   repoPath: string
   currentBranch: string

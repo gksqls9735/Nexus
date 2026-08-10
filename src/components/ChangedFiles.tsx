@@ -9,16 +9,16 @@ type ChangedFilesProps = {
 export function ChangedFiles({ files }: ChangedFilesProps) {
   return (
     <Panel title="Changed files" icon={<AlertTriangle size={18} />}>
-      <div className="grid h-full min-h-0 content-start gap-2 overflow-auto p-3">
+      <div className="app-scrollbar grid h-full min-h-0 content-start gap-1.5 overflow-auto p-3">
         {files.map((file) => (
           <div
             key={`${file.path}-${file.index}-${file.workingTree}`}
-            className="grid grid-cols-[72px_1fr] items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+            className="grid h-10 grid-cols-[64px_1fr] items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 text-sm"
           >
-            <span className="rounded bg-white px-2 py-1 text-center font-mono text-xs text-slate-600">
+            <span className="rounded bg-white px-1.5 py-0.5 text-center font-mono text-[11px] text-slate-600">
               {file.index || '-'} / {file.workingTree || '-'}
             </span>
-            <span className="truncate font-medium text-slate-800" title={file.path}>
+            <span className="truncate text-[13px] font-medium text-slate-800" title={file.path}>
               {file.path}
             </span>
           </div>
