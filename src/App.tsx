@@ -20,6 +20,7 @@ import {
   deleteLocalBranch,
   emptySnapshot,
   getCommitDetails,
+  getLastRepository,
   getSnapshot,
   merge,
   onRepositoryChanged,
@@ -56,6 +57,23 @@ function App() {
     const timeoutId = window.setTimeout(closeNotification, error ? 7000 : 3000)
     return () => window.clearTimeout(timeoutId)
   }, [message, error, closeNotification])
+
+  useEffect(() => {
+    void loadLastRepository()
+
+    async function loadLastRepository() {
+      try {
+        const repoPath = await getLastRepository()
+        if (!repoPath) {
+          return
+        }
+
+        applySnapshot(await getSnapshot())
+      } catch (caught) {
+        setError(getErrorMessage(caught))
+      }
+    }
+  }, [])
 
   useEffect(() => {
     const unsubscribeChanged = onRepositoryChanged((repoPath) => {

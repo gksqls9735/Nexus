@@ -17,6 +17,7 @@ let repositoryWatchTimeout: NodeJS.Timeout | null = null
 let repositoryPollInterval: NodeJS.Timeout | null = null
 let repositoryStateSignature = ''
 let repositoryPollRunning = false
+const preferencesFileName = 'preferences.json'
 
 async function createWindow() {
   mainWindow = new BrowserWindow({
@@ -79,10 +80,26 @@ function registerGitHandlers() {
 
     const repoPath = result.filePaths[0]
     await ensureGitRepo(repoPath)
+    saveLastRepositoryPath(repoPath)
     startRepositoryWatch(repoPath)
     return repoPath
   })
 
+  ipcMain.handle('repo:last', async () => {
+    const repoPath = readLastRepositoryPath()
+    if (!repoPath) {
+      return ''
+    }
+
+    try {
+      await ensureGitRepo(repoPath)
+      startRepositoryWatch(repoPath)
+      return repoPath
+    } catch {
+      saveLastRepositoryPath('')
+      return ''
+    }
+  })
   ipcMain.handle('repo:snapshot', async (_event, repoPath: string) => getSnapshot(repoPath))
   ipcMain.handle('repo:commitDetails', async (_event, repoPath: string, commitHash: string) =>
     getCommitDetails(repoPath, commitHash),
@@ -343,6 +360,28 @@ function getPrimaryRemoteUrl(remotes: Array<{ name: string; refs: { fetch: strin
   const origin = remotes.find((remote) => remote.name === 'origin')
   const remote = origin ?? remotes[0]
   return remote?.refs.fetch || remote?.refs.push || ''
+}
+
+function readLastRepositoryPath() {
+  try {
+    const preferences = JSON.parse(fs.readFileSync(getPreferencesFilePath(), 'utf8')) as { lastRepositoryPath?: string }
+    return preferences.lastRepositoryPath || ''
+  } catch {
+    return ''
+  }
+}
+
+function saveLastRepositoryPath(repoPath: string) {
+  fs.mkdirSync(app.getPath('userData'), { recursive: true })
+  fs.writeFileSync(
+    getPreferencesFilePath(),
+    JSON.stringify({ lastRepositoryPath: repoPath }, null, 2),
+    'utf8',
+  )
+}
+
+function getPreferencesFilePath() {
+  return path.join(app.getPath('userData'), preferencesFileName)
 }
 
 function getErrorMessage(caught: unknown) {

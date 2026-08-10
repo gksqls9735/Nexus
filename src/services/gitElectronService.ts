@@ -2,6 +2,7 @@ import type { CommitDetailsData, RepoSnapshot } from '../types/git'
 
 export type GitDeskApi = {
   selectRepository: () => Promise<string>
+  getLastRepository: () => Promise<string>
   getSnapshot: (repoPath: string) => Promise<RepoSnapshot>
   getCommitDetails: (repoPath: string, commitHash: string) => Promise<CommitDetailsData>
   pull: (repoPath: string) => Promise<void>
@@ -34,6 +35,12 @@ export const emptySnapshot: RepoSnapshot = {
 
 export async function selectRepository() {
   const repoPath = await getApi().selectRepository()
+  activeRepoPath = repoPath
+  return repoPath
+}
+
+export async function getLastRepository() {
+  const repoPath = await getApi().getLastRepository()
   activeRepoPath = repoPath
   return repoPath
 }
