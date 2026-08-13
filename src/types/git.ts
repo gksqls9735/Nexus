@@ -15,6 +15,7 @@ export type ChangedFile = {
 export type CommitChangedFile = {
   path: string
   status: string
+  patch: string
 }
 
 export type CommitDetailsData = {

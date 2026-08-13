@@ -260,18 +260,31 @@ async function getRepositoryStateSignature(repoPath: string) {
 }
 
 async function getCommitDetails(repoPath: string, commitHash: string) {
-  const output = await getGit(repoPath).raw([
+  const git = getGit(repoPath);
+  const output = await git.raw([
     'show',
     '--name-status',
     '--format=format:%B%x1e',
     commitHash,
   ])
   const [messagePart = '', filesPart = ''] = output.split('\x1e')
+  const files = parseCommitFiles(filesPart);
 
   return {
     hash: commitHash,
     message: messagePart.trim(),
-    files: parseCommitFiles(filesPart),
+    files: await Promise.all(
+      files.map(async (file) => ({
+        ...file,
+        patch: await git.raw([
+          'show',
+          '--format=format:',
+          commitHash,
+          '--',
+          file.path
+        ]),
+      })),
+    ),
   }
 }
 
