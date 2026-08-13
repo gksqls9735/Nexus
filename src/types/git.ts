@@ -40,6 +40,7 @@ export type RepoSnapshot = {
 export type GitAction =
   | 'pull'
   | 'push'
+  | 'commit'
   | 'checkout'
   | 'merge'
   | 'cherryPick'

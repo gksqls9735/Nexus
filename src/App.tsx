@@ -14,6 +14,7 @@ import { RepositorySidebar } from './components/RepositorySidebar'
 import {
   checkout,
   cherryPick,
+  commitFiles,
   connectRemote,
   createAndCheckoutBranch,
   createBranch,
@@ -132,6 +133,10 @@ function App() {
       applySnapshot(await getSnapshot())
       setMessage('작업이 완료되었습니다.')
     })
+  }
+
+  function submitCommit(filePaths: string[], commitMessage: string) {
+    void runAction('commit', () => commitFiles(filePaths, commitMessage));
   }
 
   async function runWithBusyState(action: GitAction | 'select' | 'refresh', task: () => Promise<void>) {
@@ -306,7 +311,7 @@ function App() {
           />
           <div className="grid min-h-0 grid-cols-[minmax(0,1fr)_420px] gap-3">
             <CommitDetails details={selectedCommitDetails} loading={commitDetailsLoading} />
-            <ChangedFiles files={snapshot.changedFiles} />
+            <ChangedFiles files={snapshot.changedFiles} busy={Boolean(busyAction)} onCommit={submitCommit} />
           </div>
         </section>
       </div>

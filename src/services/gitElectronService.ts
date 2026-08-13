@@ -5,6 +5,7 @@ export type GitDeskApi = {
   getLastRepository: () => Promise<string>
   getSnapshot: (repoPath: string) => Promise<RepoSnapshot>
   getCommitDetails: (repoPath: string, commitHash: string) => Promise<CommitDetailsData>
+  commitFiles: (repoPath: string, filePaths: string[], message: string) => Promise<void>
   pull: (repoPath: string) => Promise<void>
   push: (repoPath: string) => Promise<void>
   connectRemote: (repoPath: string, remoteUrl: string) => Promise<void>
@@ -51,6 +52,10 @@ export async function getSnapshot() {
 
 export async function getCommitDetails(commitHash: string) {
   return getApi().getCommitDetails(activeRepoPath, commitHash)
+}
+
+export async function commitFiles(filePaths: string[], message: string) {
+  await getApi().commitFiles(activeRepoPath, filePaths, message);
 }
 
 export async function pull() {

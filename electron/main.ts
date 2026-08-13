@@ -104,6 +104,9 @@ function registerGitHandlers() {
   ipcMain.handle('repo:commitDetails', async (_event, repoPath: string, commitHash: string) =>
     getCommitDetails(repoPath, commitHash),
   )
+  ipcMain.handle('repo:commitFiles', async (_event, repoPath: string, filePaths: string[], message: string) => {
+    await commitFiles(repoPath, filePaths, message)
+  })
   ipcMain.handle('repo:pull', async (_event, repoPath: string) => {
     await getGit(repoPath).pull()
   })
@@ -286,6 +289,28 @@ async function getCommitDetails(repoPath: string, commitHash: string) {
       })),
     ),
   }
+}
+
+async function commitFiles(repoPath: string, filePaths: string[], message: string) {
+  const trimmedMessage = message.trim();
+  const normalizedFilePaths = normalizeCommitFilePaths(filePaths);
+
+  if (!trimmedMessage) throw new Error('커밋 메세지를 입력하세요.');
+  if (normalizedFilePaths.length === 0) throw new Error('커밋할 파일을 선택하세요.');
+
+  const git = getGit(repoPath)
+  await git.raw(['add', '-A', '--', ...normalizedFilePaths])
+  await git.raw(['commit', '-m', trimmedMessage])
+}
+
+function normalizeCommitFilePaths(filePaths: string[]) {
+  return Array.from(
+    new Set(
+      filePaths
+        .map((filePath) => filePath.trim().replaceAll('\\', '/'))
+        .filter((filePath) => filePath && !path.isAbsolute(filePath) && !filePath.includes('\0')),
+    ),
+  )
 }
 
 function parseCommitFiles(value: string) {
