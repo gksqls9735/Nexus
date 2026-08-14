@@ -1,39 +1,43 @@
 import { AlertTriangle, GitCommitHorizontal } from 'lucide-react'
 import type { ChangedFile } from '../types/git'
 import { Panel } from './ui/Panel'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { CommitSelectedFilesModal } from './CommitSelectedFilesModal'
 
 type ChangedFilesProps = {
   files: ChangedFile[]
   busy: boolean
   onCommit: (filePaths: string[], message: string) => void
+  onStage: (filePaths: string[]) => void
+  onUnstage: (filePaths: string[]) => void
 }
 
-export function ChangedFiles({ files, busy, onCommit }: ChangedFilesProps) {
-  const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
+export function ChangedFiles({ files, busy, onCommit, onStage, onUnstage }: ChangedFilesProps) {
   const [commitModalOpen, setCommitModalOpen] = useState<boolean>(false);
-  const filePaths = useMemo(() => files.map((file) => file.path), [files]);
-  const selectedFiles = files.filter((file) => selectedPaths.has(file.path));
-  const allSelected = filePaths.length > 0 && filePaths.every((filePath) => selectedPaths.has(filePath));
+  const stagedFiles = files.filter(isStagedFile);
+  const unstagedFiles = files.filter((file) => !isStagedFile(file));
+  const allStaged = files.length > 0 && unstagedFiles.length === 0;
 
-  function toggleFile(filePath: string) {
-    setSelectedPaths((current) => {
-      const next = new Set(current);
+  function toggleFile(file: ChangedFile) {
+    if (isStagedFile(file)) {
+      onUnstage([file.path]);
+      return;
+    }
 
-      if (next.has(filePath)) next.delete(filePath)
-      else next.add(filePath);
-
-      return next;
-    });
+    onStage([file.path]);
   };
 
   function toggleAll() {
-    setSelectedPaths(allSelected ? new Set() : new Set(filePaths));
+    if (allStaged) {
+      onUnstage(stagedFiles.map((file) => file.path))
+      return
+    }
+
+    onStage(unstagedFiles.map((file) => file.path))
   };
 
   function submitCommit(message: string) {
-    onCommit(selectedFiles.map((file) => file.path), message);
+    onCommit(stagedFiles.map((file) => file.path), message);
     setCommitModalOpen(false);
   };
 
@@ -45,7 +49,7 @@ export function ChangedFiles({ files, busy, onCommit }: ChangedFilesProps) {
             <label className="inline-flex min-w-0 items-center gap-2 text-sm font-medium text-slate-700">
               <input
                 type="checkbox"
-                checked={allSelected}
+                checked={allStaged}
                 disabled={files.length === 0 || busy}
                 onChange={toggleAll}
                 className="h-4 w-4 accent-slate-950"
@@ -55,12 +59,12 @@ export function ChangedFiles({ files, busy, onCommit }: ChangedFilesProps) {
 
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-slate-500">
-                {selectedFiles.length} selected
+                {stagedFiles.length} staged
               </span>
               <button
                 type="button"
                 title="Stage selected files and commit staged changes"
-                disabled={selectedFiles.length === 0 || busy}
+                disabled={stagedFiles.length === 0 || busy}
                 onClick={() => setCommitModalOpen(true)}
                 className="inline-flex h-8 items-center gap-1.5 rounded-md bg-slate-950 px-2.5 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
               >
@@ -78,9 +82,9 @@ export function ChangedFiles({ files, busy, onCommit }: ChangedFilesProps) {
               >
                 <input
                   type="checkbox"
-                  checked={selectedPaths.has(file.path)}
+                  checked={isStagedFile(file)}
                   disabled={busy}
-                  onChange={() => toggleFile(file.path)}
+                  onChange={() => toggleFile(file)}
                   className="h-4 w-4 accent-slate-950"
                 />
                 <span className="rounded bg-white px-1.5 py-0.5 text-center font-mono text-[11px] text-slate-600">
@@ -100,13 +104,17 @@ export function ChangedFiles({ files, busy, onCommit }: ChangedFilesProps) {
           </div>
         </div>
       </Panel>
-      
+
       <CommitSelectedFilesModal
-        files={selectedFiles}
+        files={stagedFiles}
         open={commitModalOpen}
         onClose={() => setCommitModalOpen(false)}
         onSubmit={submitCommit}
       />
     </>
   );
+};
+
+function isStagedFile(file: ChangedFile) {
+  return Boolean(file.index && file.index !== '?' && file.index !== ' ');
 };

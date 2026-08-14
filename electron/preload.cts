@@ -8,6 +8,10 @@ contextBridge.exposeInMainWorld('gitDesk', {
   getCommitDetails: (repoPath: string, commitHash: string) => ipcRenderer.invoke('repo:commitDetails', repoPath, commitHash),
   commitFiles: (repoPath: string, filePaths: string[], message: string) =>
     ipcRenderer.invoke('repo:commitFiles', repoPath, filePaths, message),
+  stageFiles: (repoPath: string, filePaths: string[]) =>
+    ipcRenderer.invoke('repo:stageFiles', repoPath, filePaths),
+  unstageFiles: (repoPath: string, filePaths: string[]) =>
+    ipcRenderer.invoke('repo:unstageFiles', repoPath, filePaths),
   pull: (repoPath: string) => ipcRenderer.invoke('repo:pull', repoPath),
   push: (repoPath: string) => ipcRenderer.invoke('repo:push', repoPath),
   connectRemote: (repoPath: string, remoteUrl: string) => ipcRenderer.invoke('repo:connectRemote', repoPath, remoteUrl),

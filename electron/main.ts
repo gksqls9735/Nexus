@@ -107,6 +107,12 @@ function registerGitHandlers() {
   ipcMain.handle('repo:commitFiles', async (_event, repoPath: string, filePaths: string[], message: string) => {
     await commitFiles(repoPath, filePaths, message)
   })
+  ipcMain.handle('repo:stageFiles', async (_evnet, repoPath: string, filePaths: string[]) => {
+    await stageFiles(repoPath, filePaths)
+  })
+  ipcMain.handle('repo:unstageFiles', async (_event, repoPath: string, filePaths: string[]) => {
+    await unstageFiles(repoPath, filePaths)
+  })
   ipcMain.handle('repo:pull', async (_event, repoPath: string) => {
     await getGit(repoPath).pull()
   })
@@ -311,6 +317,22 @@ function normalizeCommitFilePaths(filePaths: string[]) {
         .filter((filePath) => filePath && !path.isAbsolute(filePath) && !filePath.includes('\0')),
     ),
   )
+}
+
+async function stageFiles(repoPath: string, filePaths: string[]) {
+  const normalizedFilePaths = normalizeCommitFilePaths(filePaths);
+
+  if (normalizedFilePaths.length === 0) throw new Error('stage에 올릴 파일을 선택하세요.');
+
+  await getGit(repoPath).raw(['add', '-A', '--', ...normalizedFilePaths]);
+}
+
+async function unstageFiles(repoPath: string, filePaths: string[]) {
+  const normalizedFilePaths = normalizeCommitFilePaths(filePaths);
+
+  if (normalizedFilePaths.length === 0) throw new Error('unstage할 파일을 선택하세요.');
+
+  await getGit(repoPath).raw(['restore', '--staged', '--', ...normalizedFilePaths]);
 }
 
 function parseCommitFiles(value: string) {

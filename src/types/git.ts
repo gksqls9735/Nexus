@@ -41,6 +41,8 @@ export type GitAction =
   | 'pull'
   | 'push'
   | 'commit'
+  | 'stage'
+  | 'unstage'
   | 'checkout'
   | 'merge'
   | 'cherryPick'

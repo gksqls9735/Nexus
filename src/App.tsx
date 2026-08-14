@@ -29,6 +29,8 @@ import {
   pull,
   push,
   selectRepository,
+  stageFiles,
+  unstageFiles,
 } from './services/gitElectronService'
 import type { ContextMenuItem, ContextMenuState } from './types/contextMenu'
 import type { CommitDetailsData, GitAction, GitHistoryItem, RepoSnapshot } from './types/git'
@@ -137,6 +139,14 @@ function App() {
 
   function submitCommit(filePaths: string[], commitMessage: string) {
     void runAction('commit', () => commitFiles(filePaths, commitMessage));
+  }
+
+  function submitStage(filePaths: string[]) {
+    void runAction('stage', () => stageFiles(filePaths))
+  }
+
+  function submitUnstage(filePaths: string[]) {
+    void runAction('unstage', () => unstageFiles(filePaths))
   }
 
   async function runWithBusyState(action: GitAction | 'select' | 'refresh', task: () => Promise<void>) {
@@ -311,8 +321,13 @@ function App() {
           />
           <div className="grid min-h-0 grid-cols-[minmax(0,1fr)_420px] gap-3">
             <CommitDetails details={selectedCommitDetails} loading={commitDetailsLoading} />
-            <ChangedFiles files={snapshot.changedFiles} busy={Boolean(busyAction)} onCommit={submitCommit} />
-          </div>
+            <ChangedFiles
+              files={snapshot.changedFiles}
+              busy={Boolean(busyAction)}
+              onCommit={submitCommit}
+              onStage={submitStage}
+              onUnstage={submitUnstage}
+            />          </div>
         </section>
       </div>
 
