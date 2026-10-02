@@ -26,6 +26,7 @@ async function createWindow() {
     minWidth: 980,
     minHeight: 700,
     title: 'Local Git Desk',
+    autoHideMenuBar: true,
     backgroundColor: '#f1f5f9',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -33,6 +34,8 @@ async function createWindow() {
       nodeIntegration: false,
     },
   })
+
+  mainWindow.removeMenu()
 
   if (isDev && process.env.VITE_DEV_SERVER_URL) {
     await mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)

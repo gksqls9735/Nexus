@@ -35,8 +35,10 @@ import {
 import type { ContextMenuItem, ContextMenuState } from './types/contextMenu'
 import type { CommitDetailsData, GitAction, GitHistoryItem, RepoSnapshot } from './types/git'
 import type { BranchCreateModalState, BranchDeleteModalState, RemoteConnectModalState } from './types/modal'
+import { applyTheme, getInitialTheme, saveTheme } from './utils/theme'
 
 function App() {
+  const [theme, setTheme] = useState(getInitialTheme)
   const [snapshot, setSnapshot] = useState<RepoSnapshot>(emptySnapshot)
   const [selectedCommit, setSelectedCommit] = useState('')
   const [message, setMessage] = useState('')
@@ -53,6 +55,11 @@ function App() {
     setMessage('')
     setError('')
   }, [])
+
+  useEffect(() => {
+    applyTheme(theme)
+    saveTheme(theme)
+  }, [theme])
 
   useEffect(() => {
     if (!message && !error) return
@@ -293,7 +300,7 @@ function App() {
   }
 
   return (
-    <main className="flex h-screen min-h-0 flex-col overflow-hidden bg-slate-100 text-slate-950">
+    <main className="flex h-screen min-h-0 flex-col overflow-hidden bg-slate-100 text-slate-950 transition-colors duration-200">
       <AppToolbar
         snapshot={snapshot}
         busyAction={busyAction}
@@ -302,6 +309,8 @@ function App() {
         onConnectRemote={() => setRemoteConnectModal({ remoteUrl: snapshot.remoteUrl })}
         onPull={() => void runAction('pull', pull)}
         onPush={() => void runAction('push', push)}
+        theme={theme}
+        onToggleTheme={() => setTheme((currentTheme) => currentTheme === 'light' ? 'dark' : 'light')}
       />
 
       <div className="flex min-h-0 flex-1">

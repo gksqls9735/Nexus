@@ -1,6 +1,7 @@
-import { FolderOpen, GitBranch, Link, RefreshCw, RotateCw, Send } from 'lucide-react'
+import { FolderOpen, GitBranch, Link, Moon, RefreshCw, RotateCw, Send, Sun } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { GitAction, RepoSnapshot } from '../types/git'
+import type { Theme } from '../utils/theme'
 
 type AppToolbarProps = {
   snapshot: RepoSnapshot
@@ -10,6 +11,8 @@ type AppToolbarProps = {
   onConnectRemote: () => void
   onPull: () => void
   onPush: () => void
+  theme: Theme
+  onToggleTheme: () => void
 }
 
 export function AppToolbar({
@@ -20,6 +23,8 @@ export function AppToolbar({
   onConnectRemote,
   onPull,
   onPush,
+  theme,
+  onToggleTheme,
 }: AppToolbarProps) {
   const hasRepo = Boolean(snapshot.repoPath)
   const busy = Boolean(busyAction)
@@ -48,6 +53,16 @@ export function AppToolbar({
         <span className={`rounded px-2 py-1 text-xs font-semibold ${snapshot.isClean ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
           {snapshot.isClean ? 'clean' : 'dirty'}
         </span>
+        <button
+          type="button"
+          title={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
+          aria-label={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
+          aria-pressed={theme === 'dark'}
+          onClick={onToggleTheme}
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+        >
+          {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+        </button>
       </div>
     </header>
   )
